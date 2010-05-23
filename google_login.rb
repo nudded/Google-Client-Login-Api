@@ -9,17 +9,31 @@ module GoogleLogin
   # Use this Class to get an auth-token
   class ClientLogin
     
+    # Base Exception class 
     LoginError = Class.new Exception
     
-    attr_accessor :auth, :sid, :lsid
-    attr_reader :captcha_url
-    
-    #:nodoc:
+    # All the possible exceptions
+    [
+      "BadAuthentication", 
+      "NotVerified", 
+      "TermsNotAgreed", 
+      "CaptchaRequired", 
+      "Unknown", 
+      "AccountDeleted",
+      "AccountDisabled",   
+      "ServiceDisabled",
+      "ServiceUnavailable",
+    ].each do |const|
+      const_set const, Class.new(LoginError)
+    end
+   
     DEFAULTS = { 
       :accountType => 'HOSTED_OR_GOOGLE' ,
       :source => 'companyName-applicationName-versionID',
       :service => 'service-identifier'
     }  
+    
+    attr_reader :auth, :sid, :lsid, :captcha_url
     
     # specify the :service, :source and optionally :accountType
     # 
@@ -35,19 +49,41 @@ module GoogleLogin
       @options = DEFAULTS.merge arghash
     end
     
-    def authenticate(username, password, captcha_response = nil, &block)
+    
+    # authenticate a user, which sets the auth, sid and lsid instance_variables
+    # if you provide a block, it will be called with a captcha url if google 
+    # forces you to answer the captcha. Make sure you return the anwer in the block.
+    # 
+    # if no block is given, this will raise a CaptchaRequired error.
+    # you can rescue them and show the url via the captcha_url method.
+    # 
+    # you can then call authenticate and as 3rd parameter you provide the
+    # captcha answer.
+    # 
+    # all Exceptions this raises are subclasses of ClientLogin::LoginError.
+    # so make sure you handle them.
+    # 
+    # This is a list of all the possible errors and their meaning
+    # Error code::	Description
+    # BadAuthentication::   The login request used a username or password that is not recognized.
+    # NotVerified::         The account email address has not been verified. The user will need to access their Google account directly to resolve the issue before logging in using a non-Google application.
+    # TermsNotAgreed::      The user has not agreed to terms. The user will need to access their Google account directly to resolve the issue before logging in using a non-Google application.
+    # CaptchaRequired::     A CAPTCHA is required. (A response with this error code will also contain an image URL and a CAPTCHA token.)
+    # Unknown::             The error is unknown or unspecified; the request contained invalid input or was malformed.
+    # AccountDeleted::      The user account has been deleted.
+    # AccountDisabled::     The user account has been disabled.
+    # ServiceDisabled::     The user's access to the specified service has been disabled. (The user account may still be valid.)
+    # ServiceUnavailable::  The service is not available; try again later.
+    def authenticate(username, password, captcha_response = nil)
       @options[:Email], @options[:Passwd] = username, password
       # set logincaptcha, captchatoken will already be set
       @options[:logincaptcha] = captcha_response if captcha_response
 
-      response = perform_request
-      
-      parse_response response
+      parse_response perform_request
       
     rescue CaptchaRequired
       if block_given?
-        result = yield captcha_url
-        @options[:logincaptcha] = result
+        @options[:logincaptcha] = yield captcha_url
         retry
       else
         raise CaptchaRequired
@@ -72,11 +108,11 @@ module GoogleLogin
       end
     end
     
-    def parse_response(response, &block)
+    def parse_response(response)
       if response.code_type == Net::HTTPOK
         parse_body response.body
       else
-        handle_error response.body, &block
+        handle_error response.body
       end
     end
     
@@ -94,9 +130,6 @@ module GoogleLogin
     
     def raise_error_class(error_message)
       raise self.class.const_get error_message
-    rescue NameError
-      self.class.const_set error_message, Class.new(LoginError)
-      retry
     end
     
     def captcha_url=(url)
