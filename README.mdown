@@ -1,0 +1,6 @@
+Google ClientLogin
+------------------
+
+This is a ruby library developed to support the google ClientLogin api.
+
+(c) Copyright 2010 Toon Willems. All Rights Reserved. 
