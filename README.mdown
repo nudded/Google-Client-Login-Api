@@ -2,5 +2,43 @@ Google ClientLogin
 ------------------
 
 This is a ruby library developed to support the google ClientLogin api.
+licensed under the MIT-license.
 
-(c) Copyright 2010 Toon Willems. All Rights Reserved. 
+Usage 
+-----
+
+There is only one class, `ClientLogin`. Here is for example how you would create
+a ClientLogin for the google calendar service.
+    
+    login = GoogleLogin::ClientLogin.new :service => :cl, 
+                                         :source => 'companyName-applicationName-versionID'
+                                         :accountType => 'GOOGLE'
+                                         
+
+These are the only 3 paramaters that can be given. `:accountType` defaults 
+to 'HOSTED\_OR\_GOOGLE'.
+
+So now you can authenticate a user for the service.
+
+    login.authenticate 'willemstoon@gmail.com', password
+
+when this didn't raise any error, login has succeeded. You can find the values of
+AUTH, SID and LSID via the `auth`, `sid` and `lsid` methods. Quite logical indeed.
+
+Now sometimes it can happen that google wants you to fill in a captcha.
+when this happens the `authenticate` method will raise an error (`CaptchaRequired`).
+The url to the captcha is accesible via the `captcha_url` method.
+for example:
+    
+    login.captcha_url
+    => http://www.google.com/accounts/Captcha?ctoken=HiteT4b0Bk5Xg18_AcVoP6-yFkHPibe7O9EqxeiI7lUSN
+
+Once the user has looked and told you the captcha you can login using:
+
+    login.authenticate 'willemstoon@gmail.com', password, captcha_response
+
+There is a nice convenient block construct: if you give a block to the `authenticate` method,
+that block will be called with the captcha url. The return value from the block
+should be the captcha answer. And it will try re-authenticate automatically.
+
+(c) Copyright 2010 Toon Willems.
